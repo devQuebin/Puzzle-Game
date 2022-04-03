@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puzzle 5x5</title>
+</head>
+<body>
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <script>
+        const X_COUNT = 5;
+        const Y_COUNT = 5;
+        const CELL_WIDTH = 100;
+        const CELL_HEIGHT = 100;
+        const canvas = document.getElementById("canvas");
+        /**
+         * @type {CanvasRenderingContext2D}
+         */
+        const ctx = canvas.getContext("2d");
+        const image = new Image();
+        image.src = "img/unknown.png";
+        // The image is not yet loaded at this point.
+        // Images are loaded asynchronously.
+
+        // State
+        const NO_SELECTED = -1;
+        let selectedX = NO_SELECTED;
+        let selectedY = NO_SELECTED;
+        const gridState = [
+                //--------------------> X
+        /* | */ [ 00 , 01 , 02 , 03 , 04],
+        /* | */ [ 05 , 06 , 07 , 08 , 09],
+        /* | */ [ 10 , 11 , 12 , 13 , 14],
+        /* | */ [ 15 , 16 , 17 , 18 , 19],
+        /* V */ [ 20 , 21 , 22 , 23 , 24]
+        /* Y */
+        ];      // x 2 y 3
+                //x+y*X_COUNT
+        // Generate random level.
+        randomizeGrid();
+
+        // We listen for the load event on the image.
+        image.addEventListener('load', function() {
+            // Image is now ready for use at this point.
+
+            // This is the render loop provided by the browser.
+            window.requestAnimationFrame(render);
+        });
+
+        // Change gridState swapping stuff accordingly.
+        function swap(x, y, targetX, targetY) {
+            const temp = gridState[y][x];
+            gridState[y][x] = gridState[targetY][targetX];
+            gridState[targetY][targetX] = temp;
+        }
+
+        function randomizeGrid() {
+            for (let y = 0; y < Y_COUNT; y++) {
+                for (let x = 0; x < X_COUNT; x++) {
+                    // Math.random returns random number between 0 and 1;
+                    const randomY = Math.floor(Math.random() * Y_COUNT);
+                    const randomX = Math.floor(Math.random() * X_COUNT);
+                    swap(x, y, randomX, randomY);
+                } 
+            }
+        }
+
+        // A rendering function that runs for every fram (60fps hopefully)
+        function render() {
+
+            /*
+            +----+----+----+----+----+
+            | 00 | 01 | 02 | 03 | 04 |
+            +----+----+----+----+----+
+            | 05 | 06 | 07 | 08 | 09 |
+            +----+----+----+----+----+
+            | 10 | 11 | 12 | 13 | 14 |
+            +----+----+----+----+----+
+            | 15 | 16 | 17 | 18 | 19 |
+            +----+----+----+----+----+
+            | 20 | 21 | 22 | 23 | 24 |
+            +----+----+----+----+----+
+            */        
+
+            // Reccorer el eje X y el eje Y
+            // Initializer  Condition  Increment
+            //  /--------\ /----------\ /---\
+            for (let y = 0; y < Y_COUNT; y++) {
+                for (let x = 0; x < X_COUNT; x++) {
+                    // Variables x and y are available here.
+                    // Canculate the bounds and offset for the cell's subimage.
+                    // Using canva's drawImage `void ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);`.
+
+                    // Read the current cell value.
+                    const cellValue = gridState[y][x];
+
+                    // Calculate original X/Y indexes for a given cell value (e.g. for cellValue=22 is x=2 y=4).
+                    const cellX = cellValue%5;
+                    const cellY = Math.floor(cellValue/5);
+
+                    // Calculate the offset (sx/sy) for the subimage based on the cell value.
+                    const sx = cellX * CELL_WIDTH;
+                    const sy = cellY * CELL_HEIGHT;
+
+                    // Calculate new destination positon (dx/dy) for the images based on randomized grid.
+                    const dx = x * CELL_WIDTH;
+                    const dy = y * CELL_HEIGHT;
+
+                    // Actually draw the image.
+                    ctx.drawImage(image, sx, sy, CELL_WIDTH, CELL_HEIGHT, dx, dy, CELL_WIDTH, CELL_HEIGHT);
+
+                    if (selectedX != NO_SELECTED && selectedY != NO_SELECTED) {
+                        // Something is selected. Draw it.
+                        ctx.lineWidth = 3;
+
+                        ctx.strokeStyle = '#ff0000';
+                        ctx.strokeRect ((selectedX + 1) * CELL_WIDTH, (selectedY)     * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT)
+                        ctx.strokeRect ((selectedX - 1) * CELL_WIDTH, (selectedY)     * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT)
+                        ctx.strokeRect ((selectedX)     * CELL_WIDTH, (selectedY + 1) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT)
+                        ctx.strokeRect ((selectedX)     * CELL_WIDTH, (selectedY - 1) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT)
+
+                        ctx.strokeStyle = '#000';
+                        ctx.strokeRect (selectedX * CELL_WIDTH, selectedY * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT)
+
+                    }
+                }
+            }
+
+            // At the end we call requestAnimationFrame again to keep the loop going.
+            window.requestAnimationFrame(render);
+        }
+
+        function checkWin() {
+            for (let y = 0; y < Y_COUNT; y++) {
+                for (let x = 0; x < X_COUNT; x++) {
+                    const expected = x + y * X_COUNT;
+                    const actual = gridState[y][x];
+                    if (expected !== actual) {
+                        return
+                    }
+                }
+            }
+            // Winner
+            alert("Winner winner chicken dinner");
+        }
+
+        canvas.addEventListener('click', function(evt) {
+            const tmpX = Math.floor(evt.offsetX / CELL_WIDTH);
+            const tmpY = Math.floor(evt.offsetY / CELL_HEIGHT);
+            const isAdjacent = (
+                (selectedX + 1 === tmpX && selectedY     === tmpY) ||
+                (selectedX     === tmpX && selectedY + 1 === tmpY) ||
+                (selectedX - 1 === tmpX && selectedY     === tmpY) ||
+                (selectedX     === tmpX && selectedY - 1 === tmpY)
+            );
+
+            if (tmpX === selectedX && tmpY === selectedY) {
+                selectedX = NO_SELECTED;
+                selectedY = NO_SELECTED;
+            } else if (isAdjacent) {
+                swap(selectedX, selectedY, tmpX, tmpY);
+                selectedX = NO_SELECTED;
+                selectedY = NO_SELECTED;
+                checkWin();
+            } else {
+                selectedX = tmpX;
+                selectedY = tmpY;
+            }
+        })  
+
+        
+        
+    </script>
+</body>
+</html>
